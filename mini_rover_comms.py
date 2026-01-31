@@ -1,59 +1,55 @@
 import time
 import serial
-
-#ros libraries
+# ros libraries
 import rclpy
 from rclpy.node import Node
-
-#ros msgs
+# ros msgs
 from std_msgs.msg import Int32MultiArray
 
-#struct
-import struct
-
-#rover node
+# rover node
 class rover_node(Node):
     
     def __init__(self):
         super().__init__('rover_node')
         
-        #serial object too comunicate with esp32
+        # serial object to communicate with esp32
         self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
-        #node subscriber
+        
+        # node subscriber - listens for motor commands from Taranis node
         self.sub = self.create_subscription(
-            #array size always = 2
-            Int32MultiArray(),
-            'rover_tweet',
+            Int32MultiArray,
+            'rover_motor_commands',  # topic name
             self.rover_callback,
             10)
         
-    #subscriber callback
-    def rover_callback(self,msg):
-            
-            #parsing and packing msg into motor_id and motor_pwm
-            #packed_motor_id = struct.pack('<i',msg.data[0])
-            #packed_motor_duty = struct.pack('<i',msg.data[1])
-            motor_id = msg.data[0]
-            motor_duty = msg.data[1]
-            
-            
-            #sending msg too esp32
-            self.ser.write(f"{motor_id}\n".encode('utf-8'))
-            self.ser.write(f"{motor_duty}\n".encode('utf-8'))
-            
-            #self.ser.write(packed_motor_id)
-            #self.ser.write(packed_motor_duty)
-            
+        self.get_logger().info('Rover node ready - waiting for motor commands...')
+        
+    # subscriber callback
+    def rover_callback(self, msg):
+        
+        # msg.data[0] = left_motor (-100 to 100)
+        # msg.data[1] = right_motor (-100 to 100)
+        left_motor = msg.data[0]
+        right_motor = msg.data[1]
+        
+        # Send to ESP32 as "L,R" string format
+        command = f"{left_motor},{right_motor}\n"
+        self.ser.write(command.encode('utf-8'))
+        
+        # Optional: log the command
+        self.get_logger().debug(f"Sent to ESP32: L={left_motor}, R={right_motor}")
 
-
-#main function
+# main function
 def main():
     
-    #running the node
+    # running the node
     rclpy.init()
     rnode = rover_node()
     rclpy.spin(rnode)
     
-    #if spin fails shutdown
+    # if spin fails shutdown
     rnode.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
