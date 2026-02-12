@@ -4,3 +4,4 @@ pymavlink==2.4.49
 pynput==1.8.1
 pyrealsense2==2.56.5.9235
 pyserial==3.5
+Opencv-python>=4.10.0
